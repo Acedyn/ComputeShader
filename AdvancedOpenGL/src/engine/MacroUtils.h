@@ -19,10 +19,11 @@
 #define SHADER_COMP(s) PATH3(SHADER_PATH, s, EXT_COMP)
 #define SHADER_ID(s) STR(s)
 
-#define SCENE_NAME Scene_023_ComputeShaderBoids
-#define SHADER_NAME IDENT(023_ComputeShaderBoids)
+#define SCENE_NAME Scene_024_TerrainErosion
+#define SHADER_NAME IDENT(024_TerrainErosion)
 
 /**
+ * Scene_024_TerrainErosion
  * Scene_023_ComputeShaderBoids
  * Scene_022_ComputeShaderPrefixSum
  * Scene_021_ChangePrimitiveType
