@@ -8,7 +8,9 @@
 #include "../engine/Scene.h"
 #include "../engine/Assets.h"
 
-constexpr int NUM_ELEMENTS = 2048;
+constexpr int TEXTURE_WIDTH = 2048;
+constexpr int TEXTURE_HEIGHT = 2048;
+constexpr int NUM_ELEMENTS = TEXTURE_WIDTH * TEXTURE_HEIGHT;
 
 class Scene_024_TerrainErosion : public Scene {
 public:
@@ -51,6 +53,7 @@ private:
     GLuint dataBuffer[2];
     float inputData[NUM_ELEMENTS];
     float outputData[NUM_ELEMENTS];
+    GLuint quadTextureID;
     ComputeShader cShader;
 };
 
