@@ -53,7 +53,10 @@ private:
     GLuint dataBuffer[2];
     float inputData[NUM_ELEMENTS];
     float outputData[NUM_ELEMENTS];
-    GLuint quadTextureID;
+    GLuint heightTexture1ID;
+    GLuint heightTexture2ID;
+    GLuint colorTexture1ID;
+    GLuint colorTexture2ID;
     ComputeShader cShader;
 };
 
