@@ -1,5 +1,5 @@
 //
-// Created by gaetz on 04/12/2019.
+// Created by simon on 15/04/2021.
 //
 
 #include "Scene_024_TerrainErosion.h"
@@ -11,10 +11,12 @@
 #include <ctime>
 #include <GL/glew.h>
 
+#define NOISE Noise
+#define EROSION Erosion
 
 Scene_024_TerrainErosion::Scene_024_TerrainErosion():
     dmapDepth(8.0f), isFogEnabled(true), isDisplacementEnabled(true),
-    wireframe(false), paused(false), totalTime(0)
+    wireframe(false), paused(false), totalTime(0), frameIndex(0)
 {
 }
 
@@ -63,9 +65,10 @@ void Scene_024_TerrainErosion::load() {
     // Compute shader
     ////////////////////////////////////////
 
-    glActiveTexture(GL_TEXTURE1);
-    glGenTextures(1, &colorTexture1ID);
-    glBindTexture(GL_TEXTURE_2D, colorTexture1ID);
+    glGenTextures(2, colorTextureID);
+
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, colorTextureID[0]);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
@@ -73,9 +76,19 @@ void Scene_024_TerrainErosion::load() {
     glGenerateMipmap(GL_TEXTURE_2D);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, TEXTURE_WIDTH, TEXTURE_HEIGHT, 0, GL_RGBA, GL_FLOAT, NULL);
 
+    glActiveTexture(GL_TEXTURE1);
+    glBindTexture(GL_TEXTURE_2D, colorTextureID[1]);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glGenerateMipmap(GL_TEXTURE_2D);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, TEXTURE_WIDTH, TEXTURE_HEIGHT, 0, GL_RGBA, GL_FLOAT, NULL);
+
+    glGenTextures(2, heightTextureID);
+
     glActiveTexture(GL_TEXTURE2);
-    glGenTextures(1, &heightTexture1ID);
-    glBindTexture(GL_TEXTURE_2D, heightTexture1ID);
+    glBindTexture(GL_TEXTURE_2D, heightTextureID[0]);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
@@ -84,8 +97,7 @@ void Scene_024_TerrainErosion::load() {
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, TEXTURE_WIDTH, TEXTURE_HEIGHT, 0, GL_RGBA, GL_FLOAT, NULL);
 
     glActiveTexture(GL_TEXTURE3);
-    glGenTextures(1, &colorTexture2ID);
-    glBindTexture(GL_TEXTURE_2D, colorTexture2ID);
+    glBindTexture(GL_TEXTURE_2D, heightTextureID[1]);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
@@ -93,18 +105,28 @@ void Scene_024_TerrainErosion::load() {
     glGenerateMipmap(GL_TEXTURE_2D);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, TEXTURE_WIDTH, TEXTURE_HEIGHT, 0, GL_RGBA, GL_FLOAT, NULL);
 
-    glActiveTexture(GL_TEXTURE4);
-    glGenTextures(1, &heightTexture2ID);
-    glBindTexture(GL_TEXTURE_2D, heightTexture2ID);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glGenerateMipmap(GL_TEXTURE_2D);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, TEXTURE_WIDTH, TEXTURE_HEIGHT, 0, GL_RGBA, GL_FLOAT, NULL);
+    Assets::loadComputeShader(SHADER_CUSTOM(SHADER_NAME, NOISE), PATH(SHADER_NAME, NOISE));
+    cNoiseShader = Assets::getComputeShader(PATH(SHADER_NAME, NOISE));
 
-    Assets::loadComputeShader(SHADER_COMP(SHADER_NAME), SHADER_ID(SHADER_NAME));
-    cShader = Assets::getComputeShader(SHADER_ID(SHADER_NAME));
+    // Bind the program of the shader and fire the computation
+    cNoiseShader.use();
+    glBindTexture(GL_TEXTURE_2D, colorTextureID[frameIndex]);
+    glBindImageTexture(0, colorTextureID[frameIndex], 0, GL_FALSE, 0, GL_READ_ONLY, GL_RGBA32F);
+    glBindTexture(GL_TEXTURE_2D, colorTextureID[frameIndex ^ 1]);
+    glBindImageTexture(1, colorTextureID[frameIndex ^ 1], 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_RGBA32F);
+    glBindTexture(GL_TEXTURE_2D, heightTextureID[frameIndex]);
+    glBindImageTexture(2, heightTextureID[frameIndex], 0, GL_FALSE, 0, GL_READ_ONLY, GL_RGBA32F);
+    glBindTexture(GL_TEXTURE_2D, heightTextureID[frameIndex ^ 1]);
+    glBindImageTexture(3, heightTextureID[frameIndex ^ 1], 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_RGBA32F);
+    // Dispach the computation on a single global working group
+    glDispatchCompute(TEXTURE_WIDTH / 32, TEXTURE_HEIGHT / 32, 1);
+
+    // Block the thread until the computation is completed
+    glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+    glFinish();
+
+    Assets::loadComputeShader(SHADER_CUSTOM(SHADER_NAME, EROSION), PATH(SHADER_NAME, EROSION));
+    cErosionShader = Assets::getComputeShader(PATH(SHADER_NAME, EROSION));
 
     ////////////////////////////////////////
     // Graphic shader
@@ -138,15 +160,15 @@ void Scene_024_TerrainErosion::update(float dt) {
     ////////////////////////////////////////
 
     // Bind the program of the shader and fire the computation
-    cShader.use();
-    glBindTexture(GL_TEXTURE_2D, colorTexture2ID);
-    glBindImageTexture(1, colorTexture1ID, 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_RGBA32F);
-    glBindTexture(GL_TEXTURE_2D, colorTexture1ID);
-    glBindImageTexture(2, heightTexture1ID, 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_RGBA32F);
-    glBindTexture(GL_TEXTURE_2D, heightTexture1ID);
-    glBindImageTexture(3, colorTexture2ID, 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_RGBA32F);
-    glBindTexture(GL_TEXTURE_2D, heightTexture2ID);
-    glBindImageTexture(4, heightTexture2ID, 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_RGBA32F);
+    cErosionShader.use();
+    glBindTexture(GL_TEXTURE_2D, colorTextureID[frameIndex]);
+    glBindImageTexture(0, colorTextureID[frameIndex], 0, GL_FALSE, 0, GL_READ_ONLY, GL_RGBA32F);
+    glBindTexture(GL_TEXTURE_2D, colorTextureID[frameIndex ^ 1]);
+    glBindImageTexture(1, colorTextureID[frameIndex ^ 1], 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_RGBA32F);
+    glBindTexture(GL_TEXTURE_2D, heightTextureID[frameIndex]);
+    glBindImageTexture(2, heightTextureID[frameIndex], 0, GL_FALSE, 0, GL_READ_ONLY, GL_RGBA32F);
+    glBindTexture(GL_TEXTURE_2D, heightTextureID[frameIndex ^ 1]);
+    glBindImageTexture(3, heightTextureID[frameIndex ^ 1], 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_RGBA32F);
     // Dispach the computation on a single global working group
     glDispatchCompute(TEXTURE_WIDTH / 32, TEXTURE_HEIGHT / 32, 1);
 
@@ -154,9 +176,6 @@ void Scene_024_TerrainErosion::update(float dt) {
     glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
     glFinish();
 
-    glBindImageTexture(0, 0, 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_RGBA32F);
-
-    glUseProgram(0);
 }
 
 void Scene_024_TerrainErosion::draw()
@@ -178,6 +197,8 @@ void Scene_024_TerrainErosion::draw()
     shader.setMatrix4("mvp_matrix", proj * view);
     shader.setFloat("dmap_depth", isDisplacementEnabled ? dmapDepth : 0.0f);
     shader.setFloat("enable_fog", isFogEnabled ? 1.0f : 0.0f);
+    shader.setFloat("enable_fog", isFogEnabled ? 1.0f : 0.0f);
+    shader.setInteger("index", frameIndex);
 
     glEnable(GL_DEPTH_TEST);
     glDepthFunc(GL_LEQUAL);
@@ -187,4 +208,6 @@ void Scene_024_TerrainErosion::draw()
     else
         glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
     glDrawArraysInstanced(GL_PATCHES, 0, 4, 64 * 64);
+
+    frameIndex ^= 1;
 }

@@ -3,6 +3,7 @@
 #define STR(x) XSTR(x)
 #define PATH(x, y) STR(IDENT(x)IDENT(y))
 #define PATH3(p, x, y) STR(IDENT(p)IDENT(x)IDENT(y))
+#define PATH4(p, x, y, z) STR(IDENT(p)IDENT(x)IDENT(y)IDENT(z))
 #define EXT .h
 #define EXT_VERT .vert
 #define EXT_FRAG .frag
@@ -17,6 +18,7 @@
 #define SHADER_TESE(s) PATH3(SHADER_PATH, s, EXT_TESE)
 #define SHADER_GEOM(s) PATH3(SHADER_PATH, s, EXT_GEOM)
 #define SHADER_COMP(s) PATH3(SHADER_PATH, s, EXT_COMP)
+#define SHADER_CUSTOM(s, c) PATH4(SHADER_PATH, s, c, EXT_COMP)
 #define SHADER_ID(s) STR(s)
 
 #define SCENE_NAME Scene_024_TerrainErosion

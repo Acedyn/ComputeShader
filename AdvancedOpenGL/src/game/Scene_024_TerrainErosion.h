@@ -1,5 +1,5 @@
 //
-// Created by gaetz on 04/12/2019.
+// Created by simon on 15/04/2021.
 //
 
 #ifndef Scene_024_TerrainErosion_H
@@ -50,14 +50,11 @@ private:
     Shader shader;
 
     // Compute shader
-    GLuint dataBuffer[2];
-    float inputData[NUM_ELEMENTS];
-    float outputData[NUM_ELEMENTS];
-    GLuint heightTexture1ID;
-    GLuint heightTexture2ID;
-    GLuint colorTexture1ID;
-    GLuint colorTexture2ID;
-    ComputeShader cShader;
+    GLuint heightTextureID[2];
+    GLuint colorTextureID[2];
+    ComputeShader cNoiseShader;
+    ComputeShader cErosionShader;
+    int frameIndex;
 };
 
 static inline float randomFloat()
