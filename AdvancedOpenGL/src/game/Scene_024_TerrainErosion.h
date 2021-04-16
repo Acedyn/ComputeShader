@@ -7,10 +7,11 @@
 
 #include "../engine/Scene.h"
 #include "../engine/Assets.h"
+#include <vector>
 
 constexpr int TEXTURE_WIDTH = 2048;
 constexpr int TEXTURE_HEIGHT = 2048;
-constexpr int NUM_ELEMENTS = TEXTURE_WIDTH * TEXTURE_HEIGHT;
+constexpr int ITERATION = 20000;
 
 class Scene_024_TerrainErosion : public Scene {
 public:
@@ -49,26 +50,24 @@ private:
 
     Shader shader;
 
-    // Compute shader
+    // Compute shader buffers
     GLuint heightTextureID[2];
     GLuint colorTextureID[2];
+    GLuint brushBuffers[2];
+    GLuint iterationBuffer;
+    // Buffer data
+    std::vector<int> brushOffsets;
+    std::vector<float> brushWeights;
+    // Compute shaders
     ComputeShader cNoiseShader;
     ComputeShader cErosionShader;
+    // Frame index so we can know if we are in an odd frame or even frame
     int frameIndex;
+
+    void computeNoise();
+    void computeErosion();
+    void createBrushBuffers(int radius);
+    void createTexture(GLuint textureID);
 };
-
-static inline float randomFloat()
-{
-    static unsigned int seed = 0x13371337;
-
-    float res;
-    unsigned int tmp;
-
-    seed *= 16807;
-    tmp = seed ^ (seed >> 4) ^ (seed << 15);
-    *((unsigned int*)&res) = (tmp >> 9) | 0x3F800000;
-
-    return (res - 1.0f);
-}
 
 #endif //Scene_024_TerrainErosion_H
