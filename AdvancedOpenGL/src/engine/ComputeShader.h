@@ -24,6 +24,8 @@ public:
 
 	void setVector3f(const GLchar *name, GLfloat x, GLfloat y, GLfloat z);
 	void setVector3f(const GLchar *name, const Vector3 &value);
+	void setInteger(const GLchar* name, GLint value);
+	void setFloat(const GLchar* name, GLfloat value);
 
 private:
     GLuint cs;

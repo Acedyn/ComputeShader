@@ -11,7 +11,8 @@
 
 constexpr int TEXTURE_WIDTH = 2048;
 constexpr int TEXTURE_HEIGHT = 2048;
-constexpr int ITERATION = 20000;
+constexpr int ITERATION = 5000;
+constexpr int NUM_ELEMENTS = 2048;
 
 class Scene_024_TerrainErosion : public Scene {
 public:
@@ -53,11 +54,11 @@ private:
     // Compute shader buffers
     GLuint heightTextureID[2];
     GLuint colorTextureID[2];
-    GLuint brushBuffers[2];
-    GLuint iterationBuffer;
+    GLuint computeBuffers[3];
     // Buffer data
     std::vector<int> brushOffsets;
     std::vector<float> brushWeights;
+    std::array<int, ITERATION> positions;
     // Compute shaders
     ComputeShader cNoiseShader;
     ComputeShader cErosionShader;
@@ -69,5 +70,20 @@ private:
     void createBrushBuffers(int radius);
     void createTexture(GLuint textureID);
 };
+
+static inline float randomFloat()
+{
+    static unsigned int seed = 0x13371337;
+
+    float res;
+    unsigned int tmp;
+
+    seed *= 16807;
+    tmp = seed ^ (seed >> 4) ^ (seed << 15);
+    *((unsigned int*)&res) = (tmp >> 9) | 0x3F800000;
+
+    return (res - 1.0f);
+}
+
 
 #endif //Scene_024_TerrainErosion_H

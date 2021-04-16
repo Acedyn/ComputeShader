@@ -102,7 +102,6 @@ void Scene_024_TerrainErosion::load() {
     // Set some drawing parameters
     glPatchParameteri(GL_PATCH_VERTICES, 4);
     glEnable(GL_CULL_FACE);
-
 }
 
 void Scene_024_TerrainErosion::update(float dt) {
@@ -124,7 +123,7 @@ void Scene_024_TerrainErosion::draw()
     glClearBufferfv(GL_DEPTH, 0, &one);
 
     // Update the position of the camera
-    view = Matrix4::createLookAt(Vector3(sinf(t) * r, h, cosf(t) * r), Vector3::zero, Vector3(0.0f, 1.0f, 0.0f));
+    view = Matrix4::createLookAt(Vector3(0.0, 50, 0.0), Vector3::zero, Vector3(1.0f, 0.0f, 0.0f));
     proj = Matrix4::createPerspectiveFOV(45.0f, game->windowWidth, game->windowHeight, 0.1f, 1000.0f);
 
     // Set the uniforms 
@@ -173,21 +172,16 @@ void Scene_024_TerrainErosion::computeNoise()
 // Fire the compure shader to erode the height map texture
 void Scene_024_TerrainErosion::computeErosion()
 {
+    // Initialize the pointer to the output data
+    float* ptr;
+
     // Bind the program of the shader and fire the computation
     cErosionShader.use();
-    glBindTexture(GL_TEXTURE_2D, colorTextureID[frameIndex]);
-    glBindImageTexture(0, colorTextureID[frameIndex], 0, GL_FALSE, 0, GL_READ_ONLY, GL_RGBA32F);
-    glBindTexture(GL_TEXTURE_2D, colorTextureID[frameIndex ^ 1]);
-    glBindImageTexture(1, colorTextureID[frameIndex ^ 1], 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_RGBA32F);
-    glBindTexture(GL_TEXTURE_2D, heightTextureID[frameIndex]);
-    glBindImageTexture(2, heightTextureID[frameIndex], 0, GL_FALSE, 0, GL_READ_ONLY, GL_RGBA32F);
-    glBindTexture(GL_TEXTURE_2D, heightTextureID[frameIndex ^ 1]);
-    glBindImageTexture(3, heightTextureID[frameIndex ^ 1], 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_RGBA32F);
     // Dispach the computation on a single global working group
-    glDispatchCompute(TEXTURE_WIDTH / 32, TEXTURE_HEIGHT / 32, 1);
+    glDispatchCompute(ITERATION / 1000, 1, 1);
 
     // Block the thread until the computation is completed
-    glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+    glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
     glFinish();
 }
 
@@ -218,26 +212,39 @@ void Scene_024_TerrainErosion::createBrushBuffers(int radius)
         brushWeights[i] /= weightSum;
     }
 
-    brushOffsets = { 1, 2, 3 };
+    brushWeights.clear();
 
-    glGenBuffers(2, brushBuffers);
-    glBindBuffer(GL_SHADER_STORAGE_BUFFER, brushBuffers[0]);
-    glBufferData(GL_SHADER_STORAGE_BUFFER, brushOffsets.size() * sizeof(int), NULL, GL_DYNAMIC_DRAW);
-    glBindBuffer(GL_SHADER_STORAGE_BUFFER, brushBuffers[1]);
+    // Initialize the input buffer with random values
+    for (int i = 0; i < NUM_ELEMENTS; i++)
+    {
+        brushWeights.emplace_back(randomFloat());
+    }
+
+    // Create two buffers that will hold the data of the input and the output of the compute shader
+    glGenBuffers(3, computeBuffers);
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER, computeBuffers[0]);
+    glBufferData(GL_SHADER_STORAGE_BUFFER, brushWeights.size() * sizeof(float), NULL, GL_DYNAMIC_DRAW);
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER, computeBuffers[1]);
+    glBufferData(GL_SHADER_STORAGE_BUFFER, brushWeights.size() * sizeof(float), NULL, GL_DYNAMIC_DRAW);
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER, computeBuffers[2]);
     glBufferData(GL_SHADER_STORAGE_BUFFER, brushWeights.size() * sizeof(float), NULL, GL_DYNAMIC_DRAW);
 
-    glGenBuffers(1, &iterationBuffer);
-    glBindBuffer(GL_SHADER_STORAGE_BUFFER, iterationBuffer);
-    glBufferData(GL_SHADER_STORAGE_BUFFER, ITERATION * sizeof(int), NULL, GL_DYNAMIC_DRAW);
+    // Set the binding of the storage buffer on the shader
+    // Here, we attach the buffer to the binding 0 of the shader
+    // And the buffer 1 to the binding 1 of the shader
+    glShaderStorageBlockBinding(cErosionShader.id, 0, 0);
+    glShaderStorageBlockBinding(cErosionShader.id, 1, 1);
+    glShaderStorageBlockBinding(cErosionShader.id, 2, 2);
 
-    glShaderStorageBlockBinding(cErosionShader.id, 4, 0);
-    glShaderStorageBlockBinding(cErosionShader.id, 5, 1);
-
-    glBindBufferRange(GL_SHADER_STORAGE_BUFFER, 0, brushBuffers[0], 0, brushOffsets.size() * sizeof(int));
-    glBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, brushOffsets.size() * sizeof(int), &(brushOffsets[0]));
-
-    glBindBufferRange(GL_SHADER_STORAGE_BUFFER, 0, brushBuffers[1], 0, brushWeights.size() * sizeof(int));
-    glBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, brushWeights.size() * sizeof(int), &(brushWeights[0]));
+    // Initialize and pass the input array to the buffer 0
+    glBindBufferRange(GL_SHADER_STORAGE_BUFFER, 0, computeBuffers[0], 0, brushWeights.size() * sizeof(float));
+    glBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, brushWeights.size() * sizeof(float), &(brushWeights[0]));
+    // Initialize and pass the input array to the buffer 1
+    glBindBufferRange(GL_SHADER_STORAGE_BUFFER, 1, computeBuffers[1], 0, brushWeights.size() * sizeof(float));
+    glBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, brushWeights.size() * sizeof(float), &(brushWeights[0]));
+    // Initialize and pass the input array to the buffer 2
+    glBindBufferRange(GL_SHADER_STORAGE_BUFFER, 2, computeBuffers[2], 0, brushWeights.size() * sizeof(float));
+    glBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, brushWeights.size() * sizeof(float), &(brushWeights[0]));
 }
 
 // Create an opengl texture buffer
