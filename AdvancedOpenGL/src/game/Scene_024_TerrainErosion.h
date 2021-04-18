@@ -9,10 +9,8 @@
 #include "../engine/Assets.h"
 #include <vector>
 
-constexpr int TEXTURE_WIDTH = 2048;
-constexpr int TEXTURE_HEIGHT = 2048;
-constexpr int ITERATION = 5000;
-constexpr int NUM_ELEMENTS = 2048;
+constexpr int TEXTURE_SIZE = 2048;
+constexpr int ITERATION = 30000;
 
 class Scene_024_TerrainErosion : public Scene {
 public:
@@ -45,15 +43,16 @@ private:
     bool isDisplacementEnabled;
     bool wireframe;
     bool paused;
+    bool enableErosion;
 
     float totalTime;
     float t, r, h;
+    float rotation;
 
     Shader shader;
 
     // Compute shader buffers
-    GLuint heightTextureID[2];
-    GLuint colorTextureID[2];
+    GLuint heightTextureID;
     GLuint computeBuffers[3];
     // Buffer data
     std::vector<int> brushOffsets;
@@ -62,11 +61,11 @@ private:
     // Compute shaders
     ComputeShader cNoiseShader;
     ComputeShader cErosionShader;
-    // Frame index so we can know if we are in an odd frame or even frame
-    int frameIndex;
+    Vector2 noiseOffset;
+    bool isOutdated = true;
 
     void computeNoise();
-    void computeErosion();
+    void computeErosion(float test);
     void createBrushBuffers(int radius);
     void createTexture(GLuint textureID);
 };

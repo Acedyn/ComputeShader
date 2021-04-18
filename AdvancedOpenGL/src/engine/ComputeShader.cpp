@@ -62,3 +62,7 @@ void ComputeShader::setFloat(const GLchar* name, GLfloat value)
 {
     glUniform1f(glGetUniformLocation(id, name), value);
 }
+void ComputeShader::setVector2f(const GLchar* name, const Vector2& value)
+{
+    glUniform2f(glGetUniformLocation(id, name), value.x, value.y);
+}

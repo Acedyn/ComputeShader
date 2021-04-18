@@ -2,6 +2,7 @@
 #define COMPUTE_SHADER_H
 
 #include "maths/Vector3.h"
+#include "maths/Vector2.h"
 
 #include <GL/glew.h>
 #include <GL/gl.h>
@@ -23,7 +24,8 @@ public:
 	void compile(const GLchar *source);
 
 	void setVector3f(const GLchar *name, GLfloat x, GLfloat y, GLfloat z);
-	void setVector3f(const GLchar *name, const Vector3 &value);
+	void setVector3f(const GLchar* name, const Vector3& value);
+	void setVector2f(const GLchar* name, const Vector2& value);
 	void setInteger(const GLchar* name, GLint value);
 	void setFloat(const GLchar* name, GLfloat value);
 

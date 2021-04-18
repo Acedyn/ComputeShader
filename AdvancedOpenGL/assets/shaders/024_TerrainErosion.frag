@@ -2,49 +2,34 @@
 
 out vec4 color;
 
-layout (binding = 2) uniform sampler2D tex_color;
+layout (binding = 0) uniform sampler2D tex_color0;
 
-uniform bool enable_fog = true;
 uniform vec4 fog_color = vec4(0.7, 0.8, 0.9, 0.0);
+uniform int index = 0;
 
 in TES_OUT
 {
     vec2 tc;
-
-/*
-    // Optional, for fog
-    vec3 world_coord;
-    vec3 eye_coord;
-*/
 } fs_in;
 
-/*
-vec4 fog(vec4 c)
-{
-    float z = length(fs_in.eye_coord);
-
-    float de = 0.025 * smoothstep(0.0, 6.0, 10.0 - fs_in.world_coord.y);
-    float di = 0.045 * (smoothstep(0.0, 40.0, 20.0 - fs_in.world_coord.y));
-
-    float extinction   = exp(-z * de);
-    float inscattering = exp(-z * di);
-
-    return c * extinction + fog_color * (1.0 - inscattering);
+float fit(float value, float min1, float max1, float min2, float max2) {
+  return min2 + (value - min1) * (max2 - min2) / (max1 - min1);
 }
-*/
 
 void main(void)
 {
-    color = texture(tex_color, fs_in.tc);
-
-/*
-    // Optional, for fog
-
-    vec4 landscape = texture(tex_color, fs_in.tc);
-    if (enable_fog){
-        color = fog(landscape);
-    } else {
-        color = landscape;
-    }
-*/
+    float size = 0.002;
+    // Get the normal out of the height
+    vec3 posN = vec3(fs_in.tc.x + size, texture(tex_color0, vec2(fs_in.tc.x + 0.001, fs_in.tc.y)).x, fs_in.tc.y);
+    vec3 posS = vec3(fs_in.tc.x - size, texture(tex_color0, vec2(fs_in.tc.x - 0.001, fs_in.tc.y)).x, fs_in.tc.y);
+    vec3 posE = vec3(fs_in.tc.x, texture(tex_color0, vec2(fs_in.tc.x, fs_in.tc.y + 0.001)).x, fs_in.tc.y + size);
+    vec3 posW = vec3(fs_in.tc.x, texture(tex_color0, vec2(fs_in.tc.x, fs_in.tc.y - 0.001)).x, fs_in.tc.y - size);
+    vec3 normal = normalize(cross(posW - posE, posN - posS));
+    // Set the lights directions
+    vec3 dirLigth1 = normalize(vec3(1.0, -0.0, 2.0));
+    vec3 dirLigth2 = normalize(vec3(0.5, -0.0, -0.5));
+    float angle1 = fit(clamp(dot(normal, dirLigth1), 0.0, 0.7), 0.0, 0.5, 0.0, 0.9);
+    float angle2 = fit(clamp(dot(normal, dirLigth2), 0.0, 0.7), 0.0, 0.5, 0.0, 0.9);
+    float light = mix(angle1, angle2, 0.2);
+    color = vec4(vec3(mix(vec3(0.03, 0.06, 0.04), vec3(0.8, 0.85, 0.88), vec3(light))), 1.0);
 }
