@@ -18,7 +18,6 @@ CTestTestfile.cmake
 
 # Builds
 build/
-release/
 .vscode/ipch
 /cmake-build-debug/
 
